@@ -1,11 +1,6 @@
 <!-- GFM-TOC -->
 * [一、概述](#一概述)
 * [二、数据类型](#二数据类型)
-    * [STRING](#string)
-    * [LIST](#list)
-    * [SET](#set)
-    * [HASH](#hash)
-    * [ZSET](#zset)
 * [三、数据结构](#三数据结构)
     * [字典](#字典)
     * [跳跃表](#跳跃表)
@@ -65,144 +60,6 @@ Redis 支持很多特性，例如将内存中的数据持久化到硬盘中，�
 
 > [What Redis data structures look like](https://redislabs.com/ebook/part-1-getting-started/chapter-1-getting-to-know-redis/1-2-what-redis-data-structures-look-like/)
 
-## STRING
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/6019b2db-bc3e-4408-b6d8-96025f4481d6.png" width="400"/> </div><br>
-
-```html
-> set hello world
-OK
-> get hello
-"world"
-> del hello
-(integer) 1
-> get hello
-(nil)
-```
-
-## LIST
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/fb327611-7e2b-4f2f-9f5b-38592d408f07.png" width="400"/> </div><br>
-
-```html
-> rpush list-key item
-(integer) 1
-> rpush list-key item2
-(integer) 2
-> rpush list-key item
-(integer) 3
-
-> lrange list-key 0 -1
-1) "item"
-2) "item2"
-3) "item"
-
-> lindex list-key 1
-"item2"
-
-> lpop list-key
-"item"
-
-> lrange list-key 0 -1
-1) "item2"
-2) "item"
-```
-
-## SET
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/cd5fbcff-3f35-43a6-8ffa-082a93ce0f0e.png" width="400"/> </div><br>
-
-```html
-> sadd set-key item
-(integer) 1
-> sadd set-key item2
-(integer) 1
-> sadd set-key item3
-(integer) 1
-> sadd set-key item
-(integer) 0
-
-> smembers set-key
-1) "item"
-2) "item2"
-3) "item3"
-
-> sismember set-key item4
-(integer) 0
-> sismember set-key item
-(integer) 1
-
-> srem set-key item2
-(integer) 1
-> srem set-key item2
-(integer) 0
-
-> smembers set-key
-1) "item"
-2) "item3"
-```
-
-## HASH
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/7bd202a7-93d4-4f3a-a878-af68ae25539a.png" width="400"/> </div><br>
-
-```html
-> hset hash-key sub-key1 value1
-(integer) 1
-> hset hash-key sub-key2 value2
-(integer) 1
-> hset hash-key sub-key1 value1
-(integer) 0
-
-> hgetall hash-key
-1) "sub-key1"
-2) "value1"
-3) "sub-key2"
-4) "value2"
-
-> hdel hash-key sub-key2
-(integer) 1
-> hdel hash-key sub-key2
-(integer) 0
-
-> hget hash-key sub-key1
-"value1"
-
-> hgetall hash-key
-1) "sub-key1"
-2) "value1"
-```
-
-## ZSET
-
-<div align="center"> <img src="https://cs-notes-1256109796.cos.ap-guangzhou.myqcloud.com/1202b2d6-9469-4251-bd47-ca6034fb6116.png" width="400"/> </div><br>
-
-```html
-> zadd zset-key 728 member1
-(integer) 1
-> zadd zset-key 982 member0
-(integer) 1
-> zadd zset-key 982 member0
-(integer) 0
-
-> zrange zset-key 0 -1 withscores
-1) "member1"
-2) "728"
-3) "member0"
-4) "982"
-
-> zrangebyscore zset-key 0 800 withscores
-1) "member1"
-2) "728"
-
-> zrem zset-key member1
-(integer) 1
-> zrem zset-key member1
-(integer) 0
-
-> zrange zset-key 0 -1 withscores
-1) "member0"
-2) "982"
 ```
 
 # 三、数据结构
@@ -399,7 +256,7 @@ Redis Cluster 实现了分布式的支持。
 
 Redis 可以为每个键设置过期时间，当键过期时，会自动删除该键。
 
-对于散列表这种容器，只能为整个键设置过期时间（整个散列表），而不能为键里面的单个元素设置过期时间。
+Redis使用惰性删除和定期删除的策略删除过期键
 
 # 七、数据淘汰策略
 
@@ -424,23 +281,15 @@ Redis 4.0 引入了 volatile-lfu 和 allkeys-lfu 淘汰策略，LFU 策略通过
 
 # 八、持久化
 
-Redis 是内存型数据库，为了保证数据在断电后不会丢失，需要将内存中的数据持久化到硬盘上。
-
 ## RDB 持久化
 
-将某个时间点的所有数据都存放到硬盘上。
-
-可以将快照复制到其它服务器从而创建具有相同数据的服务器副本。
-
-如果系统发生故障，将会丢失最后一次创建快照之后的数据。
-
-如果数据量很大，保存快照的时间会很长。
+将某个时间点的所有数据都存放到硬盘上。使用save或者bgsave命令可以进行RDB持久化（前者会阻塞服务器主进程而后者会fork子进程）。通过配置可以设置每x秒进行y次操作就进行一次持久化
 
 ## AOF 持久化
 
-将写命令添加到 AOF 文件（Append Only File）的末尾。
+将写命令添加到 AOF 文件（Append Only File）的末尾。使用 AOF 持久化需要设置同步选项，从而确保写命令同步到磁盘文件上的时机。这是因为对文件进行写入并不会马上将内容同步到磁盘上，而是先存
 
-使用 AOF 持久化需要设置同步选项，从而确保写命令同步到磁盘文件上的时机。这是因为对文件进行写入并不会马上将内容同步到磁盘上，而是先存储到缓冲区，然后由操作系统决定什么时候同步到磁盘。有以下同步选项：
+储到缓冲区，然后由操作系统决定什么时候同步到磁盘。有以下同步选项：
 
 | 选项 | 同步频率 |
 | :--: | :--: |
@@ -449,10 +298,12 @@ Redis 是内存型数据库，为了保证数据在断电后不会丢失，需�
 | no | 让操作系统来决定何时同步 |
 
 - always 选项会严重减低服务器的性能；
-- everysec 选项比较合适，可以保证系统崩溃时只会丢失一秒左右的数据，并且 Redis 每秒执行一次同步对服务器性能几乎没有任何影响；
+- everysec 默认选项选项比较合适，可以保证系统崩溃时只会丢失一秒左右的数据，并且 Redis 每秒执行一次同步对服务器性能几乎没有任何影响；
 - no 选项并不能给服务器性能带来多大的提升，而且也会增加系统崩溃时数据丢失的数量。
 
-随着服务器写请求的增多，AOF 文件会越来越大。Redis 提供了一种将 AOF 重写的特性，能够去除 AOF 文件中的冗余写命令。
+随着服务器写请求的增多，AOF 文件会越来越大。Redis 提供了一种将 AOF 重写的特性，能够去除 AOF 文件中的冗余写命令，它是通过读取数据库内的键值对来生成的而无需对现有AOF文件进行读取分析。
+
+比较
 
 # 九、事务
 
@@ -529,9 +380,7 @@ def main():
 
 # 十一、复制
 
-通过使用 slaveof host port 命令来让一个服务器成为另一个服务器的从服务器。
-
-一个从服务器只能有一个主服务器，并且不支持主主复制。
+通过使用 slaveof host port 命令（地址+端口）来让一个服务器成为另一个服务器的从服务器。
 
 ## 连接过程
 
